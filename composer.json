@@ -1,0 +1,27 @@
+{
+    "name": "massinissa/metadatatool",
+    "description": "Metadata tools",
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Shuriken",
+            "email": "m.hamidouche@santiane.fr",
+            "role": "Shuriken Team"
+        }
+    ],
+    "require": {
+        "php": ">=7.3.0"
+    },
+    "autoload": {
+        "classmap": [
+            "src/"
+        ],
+        "psr-4": {
+            "Massinissa\\MetadataTool\\": "src/"
+        }
+    },
+    "support": {
+        "email": "shuriken@santiane.fr"
+    }
+}
