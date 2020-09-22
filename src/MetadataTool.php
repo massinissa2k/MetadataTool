@@ -6,6 +6,6 @@ class MetadataTool
 {
     public function __construct()
     {
-        dump('OK');
+        dump('OK 2');
     }
 }
