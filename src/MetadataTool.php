@@ -2,74 +2,110 @@
 
 namespace Massinissa\MetadataTool;
 
+use \Massinissa\MetadataTool\Lib\MetadataToolInterface;
+use \Massinissa\MetadataTool\Lib\MetadataToolPDF;
+
 /**
  * Metadata des fichiers PDF et IMAGES, permet aussi de structurer les meta dans le cadre de santiane (metier)
+ * !! Le fichier generé est temporaire, il doit etre deplacé apres generation
+ *
  * Class MetadataTool
  *
  * @package Massinissa\MetadataTool
  */
 class MetadataTool
 {
-    /** @var string */
-    protected $filename;
+    /** @var MetadataToolInterface */
+    protected $metadataToolLib;
 
     /**
-     * @var bool
+     * MetadataTool constructor.
+     *
+     * @param string      $fileName
+     * @param string|null $fileNameOutput
+     *
+     * @throws \Exception
      */
-    protected $isBase64 = false;
-
-    public function __construct(string $filename)
+    public function __construct(string $fileName, ?string $metadataToolLib = null)
     {
-        $this->setFilename($filename);
+        if ($metadataToolLib) {
+            $this->metadataToolLib = new $metadataToolLib($fileName);
+        } else {
+            $this->metadataToolLib = new MetadataToolPDF($fileName);
+        }
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getMetadatas(): array
+    {
+        return $this->metadataToolLib->getMetadatas();
+    }
+
+    /**
+     * @param string $key
+     * @param string $value
+     *
+     * @return $this
+     */
+    public function setMetadata(string $key, string $value): self
+    {
+        $this->metadataToolLib->setMetadata($key, $value);
+
+        return $this;
+    }
+
+    /**
+     * @param $key
+     *
+     * @return string|null
+     */
+    public function getMetadata($key): ?string
+    {
+        return $this->metadataToolLib->getMetadata($key);
     }
 
     /**
      * @return bool
      */
-    public function addMetadata(): bool
+    public function unsetMetadata($key): bool
     {
-        $success = PDF_set_info($this->getFilename(), 'isMyKey', 'isMyValue');
+        return $this->metadataToolLib->unsetMetadata($key);
+    }
 
-        return $success;
+    /**
+     * @param string|null $fileNameOutput
+     *
+     * @return string temporary filename or your output filename
+     * @throws \Exception
+     */
+    public function generate(?string $fileNameOutput = null): string
+    {
+        return $this->metadataToolLib->generate($fileNameOutput);
     }
 
     /**
      * @return string
      */
-    public function getFilename(): string
+    public function getFileName(): string
     {
-        return $this->filename;
+        return $this->metadataToolLib->getFileName();
     }
 
     /**
-     * @param string $filename
-     *
-     * @return $this
+     * @return string|null
      */
-    public function setFilename(string $filename): self
+    public function getLastFileNameOutput(): ?string
     {
-        $this->filename = $filename;
-
-        return $this;
+        return $this->metadataToolLib->getLastFileNameOutput();
     }
 
     /**
-     * @return bool
+     * Clear tmp files
      */
-    public function isBase64(): bool
+    public function clear(): void
     {
-        return $this->isBase64;
-    }
-
-    /**
-     * @param bool $isBase64
-     *
-     * @return MetadataTool
-     */
-    public function setIsBase64(bool $isBase64): MetadataTool
-    {
-        $this->isBase64 = $isBase64;
-
-        return $this;
+        $this->metadataToolLib->clear();
     }
 }
