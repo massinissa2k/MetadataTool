@@ -2,6 +2,8 @@
 
 namespace Massinissa\MetadataTool\Lib;
 
+use \Imagick;
+
 /**
  * Metadata des fichiers PDF et IMAGES, permet aussi de structurer les meta dans le cadre de santiane (metier)
  * !! Le fichier generé est temporaire, il doit etre deplacé apres generation
@@ -10,7 +12,7 @@ namespace Massinissa\MetadataTool\Lib;
  *
  * @package Massinissa\MetadataTool
  */
-class MetadataToolPDF implements MetadataToolInterface
+class MetadataToolImage implements MetadataToolInterface
 {
     /** @var string */
     protected $fileName;
@@ -24,17 +26,26 @@ class MetadataToolPDF implements MetadataToolInterface
     /** @var string[] */
     protected $metadatas = [];
 
+    /** @var Imagick */
+    protected $imagick = [];
+
     /** @var string Prefix de la cle metadata */
-    protected const KEY_PREFIX = 'InfoKey: ';
+    protected const KEY_PREFIX = 'InfoKey:';
 
     /**
-     * MetadataToolPDF constructor.
+     * MetadataToolImage constructor.
      *
      * @param string $fileName
+     *
+     * @throws \ImagickException
      */
     public function __construct(string $fileName)
     {
         $this->setFileName($fileName);
+        $this->imagick = new Imagick($this->getFileName());
+
+        /** Forcer le png pour permettre des cles custom  */
+        $this->imagick->setImageFormat("png");
         $this->setMetadatas($this->getMetadataFromFileName($this->getFileName()));
     }
 
@@ -66,25 +77,8 @@ class MetadataToolPDF implements MetadataToolInterface
      */
     public function setMetadata(string $key, string $value): self
     {
-        $metas = $this->getMetadatas();
-        $index = count($metas);
-
-        //Move index before empty values
-        while ($index !== 0 && empty($metas[$index])) {
-            $index--;
-        }
-
-        $mKey   = $this->formatMetaKey($key);
-        $mValue = $this->formatMetaValue($value);
-
-        $indexSearch = array_search($mKey, $metas);
-
-        if ($indexSearch !== false) {
-            //Replace value of an existing key
-            $metas[$indexSearch + 1] = $mValue;
-        } else {
-            array_splice($metas, $index + 1, 0, [$mKey, $mValue]);
-        }
+        $metas                             = $this->getMetadatas();
+        $metas[$this->formatMetaKey($key)] = $this->formatMetaValue($value);
 
         $this->metadatas = $metas;
 
@@ -98,12 +92,13 @@ class MetadataToolPDF implements MetadataToolInterface
      */
     public function getMetadata(string $key): ?string
     {
-        $mKey        = $this->formatMetaKey($key);
-        $metas       = $this->getMetadatas();
-        $indexSearch = array_search($mKey, $metas);
+        $mKey  = $this->formatMetaKey($key);
+        $metas = $this->getMetadatas();
 
-        if ($indexSearch !== false && isset($metas[$indexSearch + 1])) {
-            return preg_replace("/{$this->formatMetaValue('')}/", '', $metas[$indexSearch + 1]);
+        $value = $metas[$mKey] ?? null;
+
+        if ($value) {
+            return preg_replace("/{$this->formatMetaValue('')}/", '', $value);
         }
 
         return null;
@@ -114,13 +109,8 @@ class MetadataToolPDF implements MetadataToolInterface
      */
     public function unsetMetadata($key): void
     {
-        $mKey        = $this->formatMetaKey($key);
-        $indexSearch = array_search($mKey, $metas);
-
-        if ($indexSearch !== false) {
-            unset($this->metadatas[$indexSearch]);
-            unset($this->metadatas[$indexSearch + 1]);
-        }
+        $mKey = $this->formatMetaKey($key);
+        unset($this->metadatas[$mKey]);
     }
 
     /**
@@ -183,7 +173,9 @@ class MetadataToolPDF implements MetadataToolInterface
     protected function setFileNameOutput(?string $fileNameOutput): self
     {
         if (file_exists($fileNameOutput)) {
-            throw new \Exception('La librairie '.static::class.' ne peut avoir la responsabilité de modifier un fichier existant '.$fileNameOutput);
+            throw new \Exception(
+                "La librairie ".(static::class)." ne peut avoir la responsabilité de modifier un fichier existant {$fileNameOutput}"
+            );
         }
 
         $this->fileNameOutput = $fileNameOutput;
@@ -195,10 +187,11 @@ class MetadataToolPDF implements MetadataToolInterface
      * @param string $fileName
      *
      * @return array
+     * @throws \ImagickException
      */
     protected function getMetadataFromFileName(string $fileName): array
     {
-        return explode(PHP_EOL, shell_exec("pdftk {$fileName} dump_data_utf8"));
+        return $this->imagick->getImageProperties();
     }
 
     /**
@@ -207,16 +200,29 @@ class MetadataToolPDF implements MetadataToolInterface
      * @param array  $metas
      *
      * @return string|null
+     * @throws \ImagickException
      */
     protected function generateFileWithMetadatas(string $fileName, string $fileNameOutput, array $metas): ?string
     {
         $tempReportFile = $this->getNewTmpFile();
 
-        $metasString = implode(PHP_EOL, $metas);
+        $oldMetas = $this->getMetadataFromFileName($fileName);
 
-        file_put_contents($tempReportFile, $metasString);
+        $metas = $this->getMetadatas();
 
-        return shell_exec("pdftk {$fileName} update_info_utf8 {$tempReportFile} output {$fileNameOutput}");
+        foreach ($metas as $key => $meta) {
+            if (!isset($oldMetas[$key]) || $oldMetas[$key] !== $meta) {
+                if (!$this->imagick->setImageProperty($key, $meta)) {
+                    throw new \Exception("Can't set property {$key} with value {$meta} from {$fileName}");
+                }
+            }
+        }
+
+        if (!$this->imagick->writeImage($fileNameOutput)) {
+            throw new \Exception("Can't write image {$fileNameOutput}");
+        }
+
+        return null;
     }
 
     /**
@@ -247,7 +253,7 @@ class MetadataToolPDF implements MetadataToolInterface
      */
     protected function formatMetaValue(string $value): string
     {
-        return "InfoValue: {$value}";
+        return $value;
     }
 
     /**

@@ -50,9 +50,9 @@ interface MetadataToolInterface
     public function getMetadata(string $key): ?string;
 
     /**
-     * @return bool
+     * @return void
      */
-    public function unsetMetadata(string $key): bool;
+    public function unsetMetadata(string $key): void;
 
     /**
      * @param string|null $fileNameOutput
