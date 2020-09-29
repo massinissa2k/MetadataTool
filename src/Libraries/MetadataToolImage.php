@@ -1,6 +1,6 @@
 <?php
 
-namespace Massinissa\MetadataTool\Lib;
+namespace Massinissa\MetadataTool\Libraries;
 
 use \Imagick;
 

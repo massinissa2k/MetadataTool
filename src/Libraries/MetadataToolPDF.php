@@ -1,6 +1,6 @@
 <?php
 
-namespace Massinissa\MetadataTool\Lib;
+namespace Massinissa\MetadataTool\Libraries;
 
 /**
  * Metadata des fichiers PDF et IMAGES, permet aussi de structurer les meta dans le cadre de santiane (metier)
